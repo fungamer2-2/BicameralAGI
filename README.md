@@ -1,7 +1,7 @@
 <div align="center">
 
 # 🧠 Bicameral Human-Like AGI
-# ⚠️  Exciting News: BicameralAGI is Now Community-Driven! Join Us!  ⚠️
+
 ![BicameralAGI Cover](media/BICA_Cover_words.png)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -20,8 +20,6 @@ Hey everyone! I'm Alan Hourmand, and I'm excited to announce that BicameralAGI i
 ### Join the Artificial Sentience Community
 - 🎮 [Discord Community](https://discord.gg/ns6E3xM6XN)
 - 📱 [Reddit: r/ArtificialSentience](https://www.reddit.com/r/ArtificialSentience/)
-
-We're building what aims to be the largest open-source AGI project, focused on creating emotionally intelligent AI that genuinely cares about humanity. Whether you're a researcher, developer, professor, influencer, or just someone passionate about AGI, there's a place for you in our community!
 
 ---
 
@@ -48,152 +46,11 @@ We're building what aims to be the largest open-source AGI project, focused on c
 
 ---
 
-## 🎯 Volunteer Positions & Roles Needed
-
-⚠️ **Important Note**: These are currently unpaid, volunteer positions. We're a passionate community of AGI enthusiasts working together in our free time. While we hope to explore funding options in the future, right now this is a labor of love - perfect for those wanting to gain experience, build their portfolio, contribute to cutting-edge AGI research, and be part of an exciting community! ⚠️
-
-### Time Commitment
-- Most roles require some work done per week, I understand since its volunteer your hours will be flexible
-- Work at your own pace
-- Great for:
-  - Students building experience
-  - Professionals interested in AGI
-  - Researchers wanting to collaborate
-  - Enthusiasts passionate about AI
-  - Anyone wanting to be part of an innovative AGI community
-
-### Core Team Positions
-- **Project Architect** (1-2 positions)
-  - Help design and oversee the technical architecture
-  - Review major architectural decisions
-  - Work closely with me on core development direction
-
-- **Research Coordinators** (2-3 positions)
-  - Lead research initiatives in specific areas (emotions, consciousness, AGI architecture)
-  - Organize and document research findings
-  - Coordinate with academic partners and researchers
-  - Help write research papers and technical documentation
-
-- **Community Managers** (2-3 positions)
-  - Discord Community Management
-  - Reddit Moderation (r/ArtificialSentience)
-  - Organize community events and discussions
-  - Maintain community guidelines and foster positive engagement
-
-### Development Teams
-- **Core Systems Team Lead** (1 position)
-  - Oversee development of core BicameralAGI components
-  - Coordinate between different development teams
-  - Code review and quality assurance
-
-- **Memory Systems Team Lead** (1 position)
-  - Lead development of memory architecture
-  - Research and implement memory consolidation mechanisms
-  - Design and test memory persistence systems
-
-- **Cognitive Processing Team Lead** (1 position)
-  - Oversee development of thinking and reasoning systems
-  - Implement and test cognitive architectures
-  - Research and develop consciousness simulation
-
-- **Emotional Intelligence Team Lead** (1 position)
-  - Lead development of emotional processing systems
-  - Research and implement empathy mechanisms
-  - Design and test emotional response systems
-
-### Support Roles
-- **Documentation Lead** (1-2 positions)
-  - Maintain project documentation
-  - Create tutorials and guides
-  - Ensure documentation stays current with development
-
-- **Testing Coordinator** (1 position)
-  - Develop and maintain testing frameworks
-  - Coordinate testing efforts across teams
-  - Ensure quality standards are met
-
-- **Community Support Team** (3-4 positions)
-  - Help new members get started
-  - Answer questions in Discord and Reddit
-  - Maintain FAQs and community resources
-  - Monitor discussions and ensure healthy community interaction
-
-### Content & Communication
-- **Technical Writer** (1-2 positions)
-  - Write and edit technical documentation
-  - Create blog posts and updates
-  - Help with research paper writing
-
-- **Social Media Coordinator** (1 position)
-  - Manage project social media presence
-  - Share updates and announcements
-  - Engage with the broader AI community
-
-### Moderator Positions
-#### Discord Moderators (4-5 positions)
-- Monitor chat channels
-- Enforce community guidelines
-- Help organize and moderate voice chats/events
-- Assist new members
-
-#### Reddit Moderators (3-4 positions)
-- Monitor r/ArtificialSentience
-- Enforce subreddit rules
-- Manage posts and discussions
-- Help grow the community
-
-### Research Groups
-- **AGI Architecture Research Group**
-  - Focus on overall AGI system design
-  - Study existing AGI approaches
-  - Develop new architectural concepts
-
-- **Consciousness Studies Group**
-  - Research consciousness theories
-  - Develop consciousness simulation approaches
-  - Study bicameral mind theory applications
-
-- **Emotion & Empathy Research Group**
-  - Study emotional intelligence
-  - Develop artificial empathy systems
-  - Research human-AI interaction
-
-### How to Apply
-Interested in any of these positions? Here's how to get involved:
-1. Join our [Discord server](https://discord.gg/ns6E3xM6XN)
-2. Introduce yourself in the #introductions channel
-3. Specify which role(s) interest you in #role-applications
-4. Share any relevant experience or skills
-5. Be ready to participate in a brief discussion about your interests and vision for the role
-
-### Benefits of Volunteering
-While these positions are unpaid, they offer valuable benefits:
-- Hands-on experience with cutting-edge AGI development
-- Networking with other AI enthusiasts and professionals
-- Building your portfolio with real project contributions
-- Learning opportunities through collaboration
-- Being part of an innovative AGI project from its early stages
-- Recognition in project credits and publications
-- Potential for research collaboration and paper co-authorship
-- Leadership experience in an open-source project
-
-*Note: These are volunteer positions. While we hope to explore funding opportunities in the future, we want to be fully transparent that there is currently no monetary compensation. Your contributions will help build something amazing for the AGI community!*
-
----
-
 <a name="overview-section"></a>
 ## 💫 Project Vision & Community Goals
 
 Hello, I'm Alan Hourmand, creator of BicameralAGI. This passion project stems from my love of sci-fi and AI, inspired by characters like Data from Star Trek and Robin Williams in Bicentennial Man. BicameralAGI aims to develop emotionally intelligent AI that genuinely cares about humanity, fostering a mutualistic relationship between AI and humans.
 What started as a personal venture into AGI development has grown into something much bigger. While progress on Phase 1 was initially slow due to life's demands, I believe that by opening this project to the community, we can accelerate development while ensuring safety and ethical considerations remain at the forefront.
-
-Our community goals include:
-1. Creating a collaborative environment for AGI development
-2. Maintaining focus on mutualistic AI alignment
-3. Fostering open discussion and innovation
-4. Building a proof-of-concept for human-like AGI
-5. Establishing the largest open-source AGI repository
-
 ---
 <a name="motivation-section"></a>
 ## 💡 My Four Motivations
