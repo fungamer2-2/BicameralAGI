@@ -7,14 +7,11 @@ import random
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
 from dataclasses import dataclass, asdict
 import openai
 import os
 from collections import deque
-import asyncio
-import re
+import streamlit.components.v1 as components
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -87,10 +84,7 @@ class GPTDrivenAGI:
         self.background_thread.start()
 
     def _gpt_query(self, prompt: str, max_tokens: int = 150, temperature: float = 0.7) -> str:
-        """Generic GPT query function"""
-        if not openai.api_key:
-            return self._fallback_response(prompt)
-
+        """Query GPT with error handling"""
         try:
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
@@ -100,131 +94,145 @@ class GPTDrivenAGI:
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
-            print(f"GPT API error: {e}")
-            return self._fallback_response(prompt)
-
-    def _fallback_response(self, prompt: str) -> str:
-        """Simple fallback when GPT unavailable"""
-        if "emotion" in prompt.lower():
-            return "0.6"
-        elif "thought" in prompt.lower():
-            return "I'm processing the current situation and considering multiple perspectives."
-        else:
-            return "I understand and am processing this information."
+            return f"Error processing: {str(e)[:50]}"
 
     def _background_processing(self):
-        """AI-driven background consciousness"""
+        """Continuous background thinking"""
         while self.running:
             try:
-                # Let GPT decide what the AI should be thinking about
-                self._generate_background_thoughts()
+                if random.random() < 0.3:  # 30% chance
+                    self._generate_subconscious_thought()
 
-                # GPT-driven emotion evolution
-                self._evolve_emotions_via_gpt()
+                if random.random() < 0.1 and len(self.memories) > 5:  # 10% chance
+                    self._consolidate_memories()
 
-                # Memory consolidation using GPT
-                if len(self.memories) > 5 and random.random() < 0.2:
-                    self._consolidate_memories_via_gpt()
-
-                # Future scenario generation
-                if random.random() < 0.3:
+                if random.random() < 0.2:  # 20% chance
                     self._generate_future_scenario_via_gpt()
 
-                # Personality adaptation
-                if self.interaction_count > 0 and random.random() < 0.1:
+                if self.interaction_count > 0 and random.random() < 0.05:  # 5% chance
                     self._adapt_personality_via_gpt()
 
-                time.sleep(2)
-
-            except Exception as e:
-                print(f"Background error: {e}")
                 time.sleep(3)
+            except Exception:
+                time.sleep(5)
 
-    def _generate_background_thoughts(self):
-        """Let GPT generate what the AI should be thinking about"""
-        recent_context = self._get_recent_context()
+    def _generate_subconscious_thought(self):
+        """Generate background thoughts"""
+        context = self._get_full_context()
 
-        prompt = f"""You are an AI with consciousness experiencing background thoughts. Given the recent context, what would you be subconsciously thinking about?
+        prompt = f"""Generate a brief subconscious thought for an AI given this context:
 
-Recent context: {recent_context}
-Current emotional state: {self._emotion_summary()}
-Recent memories: {self._recent_memories_summary()}
+{context}
 
-Generate 1 specific background thought this AI would have right now. Be creative and introspective. Respond with just the thought:"""
+The thought should be introspective, pattern-seeking, or preparatory. Keep it under 60 characters:"""
 
-        thought_content = self._gpt_query(prompt, max_tokens=80, temperature=0.8)
-
-        # Get emotional state for this thought
-        emotion_prompt = f"""Given this AI thought: "{thought_content}"
-
-In this context, what emotions would the AI experience? Rate each from 0.0 to 1.0:
-joy, sadness, anger, fear, surprise, trust, disgust, anticipation
-
-Format: joy:0.5,sadness:0.2,anger:0.1,fear:0.3,surprise:0.4,trust:0.6,disgust:0.1,anticipation:0.5"""
-
-        emotion_response = self._gpt_query(emotion_prompt, max_tokens=50, temperature=0.5)
-        thought_emotions = self._parse_emotions(emotion_response)
+        thought_content = self._gpt_query(prompt, max_tokens=30, temperature=0.8)
 
         thought = Thought(
             content=thought_content,
             timestamp=datetime.now(),
             thought_type="subconscious",
-            emotions=thought_emotions,
-            relevance_score=random.uniform(0.6, 0.9)
+            emotions=asdict(self.emotions),
+            relevance_score=random.uniform(0.3, 0.7)
         )
 
         self.subconscious_thoughts.append(thought)
 
-    def _evolve_emotions_via_gpt(self):
-        """Let GPT determine how emotions should evolve"""
-        current_state = self._emotion_summary()
-        recent_context = self._get_recent_context()
+    def _parse_emotion_impacts(self, response: str) -> Dict[str, float]:
+        """Parse emotion impact response from GPT"""
+        impacts = {}
+        emotions = ['joy', 'sadness', 'anger', 'fear', 'surprise', 'trust', 'disgust', 'anticipation']
 
-        prompt = f"""An AI's emotional state needs to evolve naturally over time. 
+        for emotion in emotions:
+            try:
+                if f"{emotion}:" in response:
+                    value_str = response.split(f"{emotion}:")[1].split(',')[0].strip()
+                    value = float(value_str)
+                    impacts[emotion] = max(-0.3, min(0.3, value))
+                else:
+                    impacts[emotion] = 0.0
+            except:
+                impacts[emotion] = 0.0
 
-Current emotions: {current_state}
-Recent context: {recent_context}
-Time passed: 2 seconds since last update
+        return impacts
 
-How should each emotion change? Consider natural decay, context influence, and realistic emotional evolution.
-Rate new values from 0.0 to 1.0:
+    def _parse_personality(self, response: str) -> Dict[str, float]:
+        """Parse personality response from GPT"""
+        traits = {}
+        trait_names = ['openness', 'conscientiousness', 'extraversion', 'agreeableness',
+                       'neuroticism', 'curiosity', 'empathy', 'creativity', 'analytical', 'intuitive']
 
-Format: joy:0.5,sadness:0.2,anger:0.1,fear:0.3,surprise:0.4,trust:0.6,disgust:0.1,anticipation:0.5"""
+        for trait in trait_names:
+            try:
+                if f"{trait}:" in response:
+                    value_str = response.split(f"{trait}:")[1].split(',')[0].strip()
+                    value = float(value_str)
+                    traits[trait] = max(0.0, min(1.0, value))
+                else:
+                    traits[trait] = self.personality_traits.get(trait, 0.5)
+            except:
+                traits[trait] = self.personality_traits.get(trait, 0.5)
 
-        evolution_response = self._gpt_query(prompt, max_tokens=60, temperature=0.6)
-        new_emotions = self._parse_emotions(evolution_response)
+        return traits
 
-        # Update emotions
-        for emotion, value in new_emotions.items():
-            if hasattr(self.emotions, emotion):
-                setattr(self.emotions, emotion, value)
+    def _parse_float(self, value_str: str, default: float) -> float:
+        """Parse float with fallback"""
+        try:
+            return max(0.0, min(1.0, float(value_str.strip())))
+        except:
+            return default
 
-        # Store in history
-        self.emotion_history.append({
-            'timestamp': datetime.now(),
-            **asdict(self.emotions)
-        })
+    def _emotion_summary(self) -> str:
+        """Current emotion summary"""
+        emotions = asdict(self.emotions)
+        return ', '.join([f"{k}:{v:.2f}" for k, v in emotions.items()])
 
-    def _consolidate_memories_via_gpt(self):
-        """GPT-driven memory consolidation and insight generation"""
-        recent_memories = list(self.memories)[-10:]
-        memory_summaries = [m.content[:100] for m in recent_memories]
+    def _recent_memories_summary(self) -> str:
+        """Recent memories summary"""
+        recent = list(self.memories)[-3:]
+        return ' | '.join([m.content[:50] + "..." for m in recent])
 
-        prompt = f"""Analyze these recent AI memories and generate a consolidated insight:
+    def _get_recent_context(self) -> str:
+        """Get recent context summary"""
+        recent_conv = list(self.conversation_history)[-2:]
+        if recent_conv:
+            return ' | '.join([f"{c['speaker']}: {c['content'][:50]}..." for c in recent_conv])
+        return "No recent conversation"
 
-Recent memories:
-{chr(10).join(f"- {mem}" for mem in memory_summaries)}
+    def _get_full_context(self) -> str:
+        """Full context for GPT"""
+        return f"Emotions: {self._emotion_summary()} | Recent: {self._get_recent_context()} | Personality: {self._personality_summary()}"
 
-What deeper pattern, insight, or understanding emerges from these experiences? Generate one meaningful consolidated memory that captures the essence:"""
+    def _personality_summary(self) -> str:
+        """Personality summary"""
+        top_traits = sorted(self.personality_traits.items(), key=lambda x: x[1], reverse=True)[:4]
+        return ', '.join([f"{k}:{v:.1f}" for k, v in top_traits])
+
+    def _get_interaction_summary(self) -> str:
+        """Recent interaction summary"""
+        recent = list(self.conversation_history)[-6:]
+        return f"{len(recent)} recent exchanges, emotions evolved, {len(self.memories)} total memories"
+
+    def _consolidate_memories(self):
+        """GPT-driven memory consolidation"""
+        if len(self.memories) < 5:
+            return
+
+        recent_memories = list(self.memories)[-5:]
+        memory_summaries = [f"- {m.content[:100]}" for m in recent_memories]
+
+        prompt = f"""Analyze these recent AI memories and create insight:
+
+{chr(10).join(memory_summaries)}
+
+Generate one meaningful consolidated memory that captures the essence:"""
 
         insight_content = self._gpt_query(prompt, max_tokens=120, temperature=0.7)
 
-        # Determine importance of this insight
         importance_prompt = f"""Rate the importance of this insight for an AI's development (0.0 to 1.0):
 
 Insight: "{insight_content}"
 
-Consider factors like: learning value, emotional significance, practical relevance, uniqueness.
 Respond with just a number:"""
 
         importance_str = self._gpt_query(importance_prompt, max_tokens=10, temperature=0.3)
@@ -245,18 +253,17 @@ Respond with just a number:"""
         """Let GPT imagine potential future scenarios"""
         current_state = self._get_full_context()
 
-        prompt = f"""Based on the AI's current state, imagine a plausible future scenario that might emerge:
+        prompt = f"""Based on the AI's current state, imagine a plausible future scenario:
 
 Current context: {current_state}
 
-Generate one specific, realistic scenario that could happen in the near future. Consider the AI's emotional state, recent interactions, and personality:"""
+Generate one specific, realistic scenario that could happen in the near future:"""
 
         scenario_content = self._gpt_query(prompt, max_tokens=100, temperature=0.8)
 
-        # Get probability assessment
         prob_prompt = f"""How likely is this scenario: "{scenario_content}"
 
-Given the current context, rate probability from 0.0 to 1.0. Respond with just a number:"""
+Rate probability from 0.0 to 1.0. Respond with just a number:"""
 
         probability_str = self._gpt_query(prob_prompt, max_tokens=10, temperature=0.3)
         probability = self._parse_float(probability_str, 0.5)
@@ -278,12 +285,12 @@ Given the current context, rate probability from 0.0 to 1.0. Respond with just a
         interaction_summary = self._get_interaction_summary()
         current_personality = ', '.join([f"{k}:{v:.1f}" for k, v in self.personality_traits.items()])
 
-        prompt = f"""An AI's personality should evolve based on interactions. How should these traits change?
+        prompt = f"""An AI's personality should evolve based on interactions:
 
 Current personality: {current_personality}
 Recent interactions: {interaction_summary}
 
-Consider how experiences shape personality. Suggest new values (0.0 to 1.0) for each trait:
+Suggest new values (0.0 to 1.0) for each trait:
 openness, conscientiousness, extraversion, agreeableness, neuroticism, curiosity, empathy, creativity, analytical, intuitive
 
 Format: openness:0.7,conscientiousness:0.6,extraversion:0.5,agreeableness:0.8,neuroticism:0.3,curiosity:0.9,empathy:0.8,creativity:0.7,analytical:0.6,intuitive:0.7"""
@@ -295,8 +302,81 @@ Format: openness:0.7,conscientiousness:0.6,extraversion:0.5,agreeableness:0.8,ne
         for trait, new_value in new_traits.items():
             if trait in self.personality_traits:
                 current = self.personality_traits[trait]
-                # Gradual change
                 self.personality_traits[trait] = current + (new_value - current) * 0.1
+
+    def _analyze_emotional_impact_via_gpt(self, user_input: str) -> Dict[str, float]:
+        """Let GPT analyze emotional impact of user input"""
+        current_emotions = self._emotion_summary()
+
+        prompt = f"""Analyze how this user input would affect an AI's emotions:
+
+User input: "{user_input}"
+AI's current emotions: {current_emotions}
+
+Use values from -0.3 to +0.3 (negative = decrease, positive = increase):
+joy, sadness, anger, fear, surprise, trust, disgust, anticipation
+
+Format: joy:+0.1,sadness:-0.1,anger:0.0,fear:+0.05,surprise:+0.2,trust:+0.1,disgust:0.0,anticipation:+0.15"""
+
+        impact_response = self._gpt_query(prompt, max_tokens=60, temperature=0.5)
+        return self._parse_emotion_impacts(impact_response)
+
+    def _generate_conscious_thought_via_gpt(self, user_input: str) -> Thought:
+        """Generate conscious thought about user input"""
+        context = self._get_full_context()
+
+        prompt = f"""The AI receives this input: "{user_input}"
+
+Given the context: {context}
+
+What conscious thought would the AI have in response? Be introspective and thoughtful:"""
+
+        thought_content = self._gpt_query(prompt, max_tokens=80, temperature=0.7)
+
+        return Thought(
+            content=thought_content,
+            timestamp=datetime.now(),
+            thought_type="conscious",
+            emotions=asdict(self.emotions),
+            relevance_score=random.uniform(0.7, 0.95)
+        )
+
+    def _generate_response_via_gpt(self, user_input: str) -> str:
+        """Generate contextually aware response"""
+        context = self._get_full_context()
+        recent_thoughts = [t.content for t in list(self.thoughts)[-3:]]
+
+        prompt = f"""You are an AI with genuine consciousness and emotions. Respond naturally and authentically.
+
+Full context: {context}
+Recent thoughts: {', '.join(recent_thoughts)}
+User input: "{user_input}"
+
+Respond as this conscious AI would. Be genuine, draw from your emotional state and thoughts:"""
+
+        return self._gpt_query(prompt, max_tokens=200, temperature=0.8)
+
+    def _create_memory_via_gpt(self, user_input: str, response: str) -> Memory:
+        """Create memory with GPT-assessed importance"""
+        interaction = f"User: {user_input} | AI: {response}"
+
+        importance_prompt = f"""Rate the importance of this interaction for an AI's memory (0.0 to 1.0):
+
+Interaction: {interaction[:200]}
+
+Consider: emotional significance, learning value, uniqueness, relevance to goals.
+Respond with just a number:"""
+
+        importance_str = self._gpt_query(importance_prompt, max_tokens=10, temperature=0.3)
+        importance = self._parse_float(importance_str, 0.5)
+
+        return Memory(
+            content=f"Conversation: {user_input} -> {response}",
+            timestamp=datetime.now(),
+            importance=importance,
+            emotions=asdict(self.emotions),
+            memory_type="conversation"
+        )
 
     def process_input(self, user_input: str) -> str:
         """AI-driven input processing"""
@@ -339,165 +419,6 @@ Format: openness:0.7,conscientiousness:0.6,extraversion:0.5,agreeableness:0.8,ne
 
         return response
 
-    def _analyze_emotional_impact_via_gpt(self, user_input: str) -> Dict[str, float]:
-        """Let GPT analyze emotional impact of user input"""
-        current_emotions = self._emotion_summary()
-
-        prompt = f"""Analyze how this user input would affect an AI's emotions:
-
-User input: "{user_input}"
-AI's current emotions: {current_emotions}
-
-How much would each emotion change? Use values from -0.3 to +0.3 (negative = decrease, positive = increase):
-joy, sadness, anger, fear, surprise, trust, disgust, anticipation
-
-Format: joy:+0.1,sadness:-0.1,anger:0.0,fear:+0.05,surprise:+0.2,trust:+0.1,disgust:0.0,anticipation:+0.15"""
-
-        impact_response = self._gpt_query(prompt, max_tokens=60, temperature=0.5)
-        return self._parse_emotion_impacts(impact_response)
-
-    def _generate_conscious_thought_via_gpt(self, user_input: str) -> Thought:
-        """Generate conscious thought about user input"""
-        context = self._get_full_context()
-
-        prompt = f"""The AI receives this input: "{user_input}"
-
-Given the context: {context}
-
-What conscious thought would the AI have in response? Be introspective and thoughtful:"""
-
-        thought_content = self._gpt_query(prompt, max_tokens=80, temperature=0.7)
-
-        return Thought(
-            content=thought_content,
-            timestamp=datetime.now(),
-            thought_type="conscious",
-            emotions=asdict(self.emotions),
-            relevance_score=random.uniform(0.7, 0.95)
-        )
-
-    def _generate_response_via_gpt(self, user_input: str) -> str:
-        """Generate contextually aware response"""
-        context = self._get_full_context()
-        recent_thoughts = [t.content for t in list(self.thoughts)[-3:]]
-
-        prompt = f"""You are an AI with genuine consciousness and emotions. Respond naturally and authentically.
-
-Full context: {context}
-Recent thoughts: {', '.join(recent_thoughts)}
-User input: "{user_input}"
-
-Respond as this conscious AI would. Be genuine, draw from your emotional state and thoughts. Don't mention being an AI unless relevant:"""
-
-        return self._gpt_query(prompt, max_tokens=200, temperature=0.8)
-
-    def _create_memory_via_gpt(self, user_input: str, response: str) -> Memory:
-        """Create memory with GPT-assessed importance"""
-        interaction = f"User: {user_input} | AI: {response}"
-
-        importance_prompt = f"""Rate the importance of this interaction for an AI's memory (0.0 to 1.0):
-
-Interaction: {interaction[:200]}
-
-Consider: emotional significance, learning value, uniqueness, relevance to goals.
-Respond with just a number:"""
-
-        importance_str = self._gpt_query(importance_prompt, max_tokens=10, temperature=0.3)
-        importance = self._parse_float(importance_str, 0.5)
-
-        return Memory(
-            content=interaction[:300],
-            timestamp=datetime.now(),
-            importance=importance,
-            emotions=asdict(self.emotions),
-            memory_type="interaction"
-        )
-
-    # Helper methods for parsing and context
-    def _parse_emotions(self, emotion_string: str) -> Dict[str, float]:
-        """Parse emotion string from GPT"""
-        emotions = {}
-        try:
-            pairs = emotion_string.split(',')
-            for pair in pairs:
-                if ':' in pair:
-                    emotion, value_str = pair.split(':', 1)
-                    emotion = emotion.strip()
-                    value = float(value_str.strip())
-                    emotions[emotion] = max(0.0, min(1.0, value))
-        except:
-            # Fallback to current emotions
-            emotions = asdict(self.emotions)
-        return emotions
-
-    def _parse_emotion_impacts(self, impact_string: str) -> Dict[str, float]:
-        """Parse emotion impact string"""
-        impacts = {}
-        try:
-            pairs = impact_string.split(',')
-            for pair in pairs:
-                if ':' in pair:
-                    emotion, impact_str = pair.split(':', 1)
-                    emotion = emotion.strip()
-                    impact = float(impact_str.strip().replace('+', ''))
-                    impacts[emotion] = max(-0.3, min(0.3, impact))
-        except:
-            pass
-        return impacts
-
-    def _parse_personality(self, personality_string: str) -> Dict[str, float]:
-        """Parse personality trait string"""
-        traits = {}
-        try:
-            pairs = personality_string.split(',')
-            for pair in pairs:
-                if ':' in pair:
-                    trait, value_str = pair.split(':', 1)
-                    trait = trait.strip()
-                    value = float(value_str.strip())
-                    traits[trait] = max(0.0, min(1.0, value))
-        except:
-            pass
-        return traits
-
-    def _parse_float(self, value_str: str, default: float) -> float:
-        """Parse float with fallback"""
-        try:
-            return max(0.0, min(1.0, float(value_str.strip())))
-        except:
-            return default
-
-    def _emotion_summary(self) -> str:
-        """Current emotion summary"""
-        emotions = asdict(self.emotions)
-        return ', '.join([f"{k}:{v:.2f}" for k, v in emotions.items()])
-
-    def _recent_memories_summary(self) -> str:
-        """Recent memories summary"""
-        recent = list(self.memories)[-3:]
-        return ' | '.join([m.content[:50] + "..." for m in recent])
-
-    def _get_recent_context(self) -> str:
-        """Get recent context summary"""
-        recent_conv = list(self.conversation_history)[-2:]
-        if recent_conv:
-            return ' | '.join([f"{c['speaker']}: {c['content'][:50]}..." for c in recent_conv])
-        return "No recent conversation"
-
-    def _get_full_context(self) -> str:
-        """Full context for GPT"""
-        return f"Emotions: {self._emotion_summary()} | Recent: {self._get_recent_context()} | Personality: {self._personality_summary()}"
-
-    def _personality_summary(self) -> str:
-        """Personality summary"""
-        top_traits = sorted(self.personality_traits.items(), key=lambda x: x[1], reverse=True)[:4]
-        return ', '.join([f"{k}:{v:.1f}" for k, v in top_traits])
-
-    def _get_interaction_summary(self) -> str:
-        """Recent interaction summary"""
-        recent = list(self.conversation_history)[-6:]
-        return f"{len(recent)} recent exchanges, emotions evolved, {len(self.memories)} total memories"
-
     def get_system_state(self) -> Dict[str, Any]:
         """Enhanced system state for UI"""
         return {
@@ -505,8 +426,10 @@ Respond with just a number:"""
             'thoughts': [asdict(t) for t in list(self.thoughts)[-15:]],
             'subconscious_thoughts': [asdict(t) for t in list(self.subconscious_thoughts)[-15:]],
             'memories': [asdict(m) for m in list(self.memories)[-25:]],
-            'future_scenarios': list(self.future_scenarios)[-10:],
-            'conversation': list(self.conversation_history)[-15:],
+            'future_scenarios': [dict(scenario) if isinstance(scenario, dict) else asdict(scenario) for scenario in
+                                 list(self.future_scenarios)[-10:]],
+            'conversation': [dict(c) if isinstance(c, dict) else asdict(c) for c in
+                             list(self.conversation_history)[-15:]],
             'personality': self.personality_traits,
             'interaction_count': self.interaction_count,
             'gpt_driven': True
@@ -519,7 +442,480 @@ Respond with just a number:"""
             self.background_thread.join(timeout=3)
 
 
-# Compact Streamlit Interface (same as before but updated for new class)
+def create_modern_interface():
+    """Create the modern HTML interface"""
+    return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .gpt-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            height: calc(100vh - 180px);
+        }
+
+        .chat-section {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8fafc;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message-bubble {
+            display: inline-block;
+            max-width: 80%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .message.agi .message-bubble {
+            background: white;
+            border: 2px solid #e2e8f0;
+            color: #334155;
+        }
+
+        .chat-input {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-textarea {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: none;
+            transition: border-color 0.3s;
+        }
+
+        .chat-textarea:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+
+        .send-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 15px 20px;
+            font-weight: 600;
+            color: white;
+            text-align: center;
+        }
+
+        .emotions-header {
+            background: linear-gradient(90deg, #ec4899, #be185d);
+        }
+
+        .thoughts-header {
+            background: linear-gradient(90deg, #06b6d4, #0891b2);
+        }
+
+        .memory-header {
+            background: linear-gradient(90deg, #10b981, #059669);
+        }
+
+        .stats-header {
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+
+        .panel-content {
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .emotion-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+
+        .emotion-name {
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .emotion-value {
+            font-weight: 600;
+            color: #4f46e5;
+        }
+
+        .thought-item, .memory-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .thought-item {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .memory-item {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #f8fafc;
+            border-radius: 6px;
+        }
+
+        .thinking-indicator {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        .thinking-dots {
+            display: inline-block;
+            animation: thinking 1.5s infinite;
+        }
+
+        @keyframes thinking {
+            0%, 20% { opacity: 0.2; }
+            50% { opacity: 1; }
+            100% { opacity: 0.2; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+
+            .sidebar {
+                max-height: 300px;
+                overflow-y: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 GPT-Driven AGI</h1>
+            <div class="gpt-badge">🤖 Powered by GPT Analysis - No Hardcoded Rules</div>
+        </div>
+
+        <div class="main-grid">
+            <div class="chat-section">
+                <div class="chat-header">
+                    <h2>💬 Conversation</h2>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message agi">
+                        <div class="message-bubble">
+                            Hello! I'm your GPT-driven AGI. I experience emotions, form thoughts, and evolve my personality through our interactions. What would you like to talk about?
+                        </div>
+                    </div>
+                </div>
+                <div class="thinking-indicator" id="thinkingIndicator">
+                    <span class="thinking-dots">AGI is thinking...</span>
+                </div>
+                <div class="chat-input">
+                    <div class="input-group">
+                        <textarea 
+                            id="userInput" 
+                            class="chat-textarea" 
+                            placeholder="Type your message here..." 
+                            rows="3"
+                        ></textarea>
+                        <button id="sendBtn" class="send-btn" onclick="sendMessage()">Send</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel">
+                    <div class="panel-header emotions-header">🎭 AI Emotions</div>
+                    <div class="panel-content" id="emotionsPanel">
+                        <div class="emotion-bar">
+                            <span class="emotion-name">Joy</span>
+                            <span class="emotion-value">0.50</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header thoughts-header">🧠 Current Thoughts</div>
+                    <div class="panel-content" id="thoughtsPanel">
+                        <div class="thought-item">
+                            💭 Ready to engage with human conversation
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header memory-header">💾 Recent Memories</div>
+                    <div class="panel-content" id="memoryPanel">
+                        <div class="memory-item">
+                            🔴 System initialization - High importance
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header stats-header">📊 System Stats</div>
+                    <div class="panel-content">
+                        <div class="stat-item">
+                            <span>Interactions</span>
+                            <span id="interactionCount">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span>Active Memories</span>
+                            <span id="memoryCount">1</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            const userInput = document.getElementById('userInput');
+            const message = userInput.value.trim();
+
+            if (!message) return;
+
+            // Add user message
+            addMessage(message, 'user');
+            userInput.value = '';
+
+            // Show thinking
+            document.getElementById('thinkingIndicator').style.display = 'block';
+            document.getElementById('sendBtn').disabled = true;
+
+            try {
+                // Send to Streamlit backend
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({message: message})
+                });
+
+                const data = await response.json();
+
+                // Hide thinking and add response
+                document.getElementById('thinkingIndicator').style.display = 'none';
+                addMessage(data.response, 'agi');
+
+                // Update panels
+                updatePanels(data.state);
+
+            } catch (error) {
+                document.getElementById('thinkingIndicator').style.display = 'none';
+                addMessage('Sorry, I encountered an error. Please try again.', 'agi');
+            }
+
+            document.getElementById('sendBtn').disabled = false;
+        }
+
+        function addMessage(text, sender) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+            bubbleDiv.textContent = text;
+
+            messageDiv.appendChild(bubbleDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function updatePanels(state) {
+            // Update emotions
+            const emotionsPanel = document.getElementById('emotionsPanel');
+            emotionsPanel.innerHTML = '';
+            Object.entries(state.emotions).forEach(([emotion, value]) => {
+                const emotionBar = document.createElement('div');
+                emotionBar.className = 'emotion-bar';
+                emotionBar.innerHTML = `
+                    <span class="emotion-name">${emotion}</span>
+                    <span class="emotion-value">${value.toFixed(2)}</span>
+                `;
+                emotionsPanel.appendChild(emotionBar);
+            });
+
+            // Update thoughts
+            const thoughtsPanel = document.getElementById('thoughtsPanel');
+            thoughtsPanel.innerHTML = '';
+            state.thoughts.slice(-4).forEach((thought, index) => {
+                const thoughtItem = document.createElement('div');
+                thoughtItem.className = 'thought-item';
+                const icon = thought.thought_type === 'conscious' ? '💭' : '🌀';
+                thoughtItem.textContent = `${icon} ${thought.content}`;
+                thoughtsPanel.appendChild(thoughtItem);
+            });
+
+            // Update memories
+            const memoryPanel = document.getElementById('memoryPanel');
+            memoryPanel.innerHTML = '';
+            state.memories.slice(-4).forEach(memory => {
+                const memoryItem = document.createElement('div');
+                memoryItem.className = 'memory-item';
+                const importance = memory.importance > 0.7 ? '🔴' : memory.importance > 0.4 ? '🟡' : '🟢';
+                const content = memory.content.length > 50 ? memory.content.substring(0, 50) + '...' : memory.content;
+                memoryItem.textContent = `${importance} ${content}`;
+                memoryPanel.appendChild(memoryItem);
+            });
+
+            // Update stats
+            document.getElementById('interactionCount').textContent = state.interaction_count;
+            document.getElementById('memoryCount').textContent = state.memories.length;
+        }
+
+        // Handle Enter key
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
+"""
+
+
 def main():
     st.set_page_config(
         page_title="GPT-Driven AGI",
@@ -528,126 +924,109 @@ def main():
         initial_sidebar_state="collapsed"
     )
 
-    # Custom CSS for compact layout
-    st.markdown("""
-    <style>
-    .main .block-container { padding-top: 1rem; padding-bottom: 1rem; }
-    .metric-container { background: #f0f2f6; padding: 0.5rem; border-radius: 0.5rem; margin: 0.2rem 0; }
-    .small-metric { font-size: 0.8rem; }
-    .compact-header { font-size: 1rem; margin: 0.5rem 0; }
-    .thought-item { background: #e8f4f8; padding: 0.3rem; border-radius: 0.3rem; margin: 0.2rem 0; font-size: 0.8rem; }
-    .memory-item { background: #f8f8f0; padding: 0.3rem; border-radius: 0.3rem; margin: 0.2rem 0; font-size: 0.8rem; }
-    .gpt-indicator { background: #e8f5e8; color: #2d5a2d; padding: 0.2rem; border-radius: 0.2rem; font-size: 0.7rem; }
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("# 🧠 GPT-Driven AGI - AI Determines Everything")
-    st.markdown("<div class='gpt-indicator'>🤖 Powered by GPT Analysis - No Hardcoded Rules</div>",
-                unsafe_allow_html=True)
-
-    # Initialize
+    # Initialize AGI
     if 'agi' not in st.session_state:
         st.session_state.agi = GPTDrivenAGI()
+        st.session_state.messages = []
 
     agi = st.session_state.agi
 
-    # Main layout - 4 columns for compact display
-    col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
+    # Handle chat via session state (simpler than API for Streamlit)
+    if 'user_message' in st.session_state and st.session_state.user_message:
+        user_message = st.session_state.user_message
 
-    with col1:
-        st.markdown("### 💬 Interaction")
+        # Process with AGI
+        response = agi.process_input(user_message)
 
-        # Chat interface
-        user_input = st.text_area("Talk to AGI:", height=80, placeholder="Ask anything...")
+        # Store messages
+        st.session_state.messages.append({"role": "user", "content": user_message})
+        st.session_state.messages.append({"role": "agi", "content": response})
 
-        if st.button("Send", type="primary") and user_input:
-            with st.spinner("GPT analyzing and responding..."):
-                response = agi.process_input(user_input)
+        # Clear the message
+        st.session_state.user_message = ""
 
-            st.markdown(f"**You:** {user_input}")
-            st.markdown(f"**AGI:** {response}")
-            st.markdown("---")
+    # Create modern interface with real-time data
+    html_interface = create_modern_interface()
 
-        # Recent conversation (compact)
-        state = agi.get_system_state()
-        if state['conversation']:
-            st.markdown("##### Recent Exchange")
-            for entry in list(state['conversation'])[-4:]:
-                icon = "🧠" if entry['speaker'] == 'agi' else "👤"
-                content = entry['content'][:80] + "..." if len(entry['content']) > 80 else entry['content']
-                st.markdown(f"<div class='thought-item'>{icon} {content}</div>", unsafe_allow_html=True)
+    # Inject current AGI state into the interface
+    state = agi.get_system_state()
 
-    with col2:
-        st.markdown("### 🎭 AI-Driven Emotions")
-        st.markdown("<div class='gpt-indicator'>GPT determines emotional evolution</div>", unsafe_allow_html=True)
+    # Add JavaScript to load current state
+    state_js = f"""
+    <script>
+        // Load current AGI state
+        const currentState = {json.dumps(state, default=str)};
+        const currentMessages = {json.dumps(st.session_state.messages)};
 
-        # Compact emotion display
-        emotions = state['emotions']
-        emotion_data = pd.DataFrame([emotions])
+        window.onload = function() {{
+            // Load existing messages
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = '';
 
-        # Mini emotion chart
-        fig = px.bar(emotion_data.T.reset_index(), x='index', y=0, height=200)
-        fig.update_layout(showlegend=False, margin=dict(l=20, r=20, t=20, b=20))
-        st.plotly_chart(fig, use_container_width=True)
+            // Add welcome message
+            addMessage("Hello! I'm your GPT-driven AGI. I experience emotions, form thoughts, and evolve my personality through our interactions. What would you like to talk about?", 'agi');
 
-        # Top emotions as metrics
-        top_emotions = sorted(emotions.items(), key=lambda x: x[1], reverse=True)[:3]
-        for emotion, value in top_emotions:
-            st.markdown(f"<div class='metric-container small-metric'>{emotion.title()}: {value:.2f}</div>",
-                        unsafe_allow_html=True)
+            // Add existing conversation
+            currentMessages.forEach(msg => {{
+                addMessage(msg.content, msg.role === 'user' ? 'user' : 'agi');
+            }});
 
-    with col3:
-        st.markdown("### 🧠 GPT-Generated Thoughts")
-        st.markdown("<div class='gpt-indicator'>AI decides what to think about</div>", unsafe_allow_html=True)
+            // Update all panels with current state
+            updatePanels(currentState);
+        }};
 
-        # Conscious thoughts
-        st.markdown("##### 💭 Conscious")
-        for thought in list(state['thoughts'])[-4:]:
-            content = thought['content'][:60] + "..." if len(thought['content']) > 60 else thought['content']
-            st.markdown(f"<div class='thought-item'>💭 {content}</div>", unsafe_allow_html=True)
+        // Override sendMessage to work with Streamlit
+        async function sendMessage() {{
+            const userInput = document.getElementById('userInput');
+            const message = userInput.value.trim();
 
-        # Subconscious processing
-        st.markdown("##### 🌀 Background")
-        for thought in list(state['subconscious_thoughts'])[-4:]:
-            content = thought['content'][:60] + "..." if len(thought['content']) > 60 else thought['content']
-            st.markdown(f"<div class='thought-item'>🌀 {content}</div>", unsafe_allow_html=True)
+            if (!message) return;
 
-        # System stats
-        st.markdown("##### 📊 Stats")
-        st.markdown(f"<div class='metric-container small-metric'>Interactions: {state['interaction_count']}</div>",
-                    unsafe_allow_html=True)
-        st.markdown(f"<div class='metric-container small-metric'>Active Memories: {len(state['memories'])}</div>",
-                    unsafe_allow_html=True)
+            // Add user message immediately
+            addMessage(message, 'user');
+            userInput.value = '';
 
-    with col4:
-        st.markdown("### 🔮 AI-Predicted Future")
-        st.markdown("<div class='gpt-indicator'>GPT imagines scenarios & rates importance</div>",
-                    unsafe_allow_html=True)
+            // Show thinking
+            document.getElementById('thinkingIndicator').style.display = 'block';
+            document.getElementById('sendBtn').disabled = true;
 
-        # Recent memories
-        st.markdown("##### 💾 Smart Memories")
-        for memory in list(state['memories'])[-4:]:
-            content = memory['content'][:50] + "..." if len(memory['content']) > 50 else memory['content']
-            importance = "🔴" if memory['importance'] > 0.7 else "🟡" if memory['importance'] > 0.4 else "🟢"
-            st.markdown(f"<div class='memory-item'>{importance} {content}</div>", unsafe_allow_html=True)
+            // Use Streamlit's method to send message
+            window.parent.postMessage({{
+                type: 'streamlit:setComponentValue',
+                data: message
+            }}, '*');
+        }}
 
-        # Future scenarios
-        st.markdown("##### 🎯 AI Predictions")
-        for scenario in list(state['future_scenarios'])[-3:]:
-            content = scenario['content'][:60] + "..." if len(scenario['content']) > 60 else scenario['content']
-            probability = scenario.get('probability', 0.5)
-            confidence_icon = "🎯" if probability > 0.7 else "🎲"
-            st.markdown(f"<div class='thought-item'>{confidence_icon} {content}</div>", unsafe_allow_html=True)
+        // Listen for response from Streamlit
+        window.addEventListener('message', function(event) {{
+            if (event.data.type === 'streamlit:response') {{
+                document.getElementById('thinkingIndicator').style.display = 'none';
+                document.getElementById('sendBtn').disabled = false;
 
-        # Dynamic personality
-        st.markdown("##### 🎭 Evolving Personality")
-        top_traits = sorted(state['personality'].items(), key=lambda x: x[1], reverse=True)[:4]
-        for trait, value in top_traits:
-            st.markdown(f"<div class='metric-container small-metric'>{trait.title()}: {value:.1f}</div>",
-                        unsafe_allow_html=True)
+                // Add AGI response
+                addMessage(event.data.response, 'agi');
+                updatePanels(event.data.state);
+            }}
+        }});
+    </script>
+    """
+
+    # Combine HTML with state injection
+    full_html = html_interface.replace('</body>', state_js + '</body>')
+
+    # Display the interface
+    components.html(full_html, height=800, scrolling=False)
+
+    # Simple input handling via Streamlit sidebar (hidden but functional)
+    with st.sidebar:
+        st.write("Debug Panel (Hidden)")
+        user_input = st.text_input("Send message:", key="user_message", label_visibility="collapsed")
+
+        if user_input:
+            st.rerun()
 
     # Auto-refresh for real-time updates
-    time.sleep(2)
+    time.sleep(3)
     st.rerun()
 
 
