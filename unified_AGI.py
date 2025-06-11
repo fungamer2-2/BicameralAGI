@@ -10,19 +10,19 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from dataclasses import dataclass, asdict
-from sentence_transformers import SentenceTransformer
 import openai
 import os
 from collections import deque
 import asyncio
+import re
 
 # Load environment variables
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # Configure OpenAI
 openai.api_key = os.getenv('OPENAI_API_KEY')
-
 
 
 @dataclass
@@ -31,17 +31,19 @@ class Memory:
     timestamp: datetime
     importance: float
     emotions: Dict[str, float]
-    memory_type: str = "raw"  # raw, consolidated, insight
+    memory_type: str = "raw"
     access_count: int = 0
+    context_tags: List[str] = None
 
 
 @dataclass
 class Thought:
     content: str
     timestamp: datetime
-    thought_type: str  # conscious, subconscious, emergent
+    thought_type: str
     emotions: Dict[str, float]
     source: str = "internal"
+    relevance_score: float = 0.0
 
 
 @dataclass
@@ -56,96 +58,146 @@ class EmotionalState:
     anticipation: float = 0.5
 
 
-class UnifiedBicameralAGI:
+class GPTDrivenAGI:
     def __init__(self):
-        # Core emotional state
+        # Core systems
         self.emotions = EmotionalState()
-        self.emotion_history = deque(maxlen=100)
+        self.emotion_history = deque(maxlen=200)
+        self.memories = deque(maxlen=2000)
+        self.thoughts = deque(maxlen=100)
+        self.subconscious_thoughts = deque(maxlen=100)
+        self.future_scenarios = deque(maxlen=50)
+        self.conversation_history = deque(maxlen=100)
 
-        # Memory systems
-        self.memories = deque(maxlen=1000)
-        self.semantic_model = None
-        self.load_semantic_model()
-
-        # Thought processes
-        self.thoughts = deque(maxlen=50)
-        self.subconscious_thoughts = deque(maxlen=30)
-
-        # Future simulation
-        self.future_scenarios = deque(maxlen=20)
-
-        # Context and personality
+        # Dynamic personality (AI determines these)
         self.personality_traits = {
-            "openness": 0.7,
-            "conscientiousness": 0.6,
-            "extraversion": 0.5,
-            "agreeableness": 0.8,
-            "neuroticism": 0.3
+            'openness': 0.7, 'conscientiousness': 0.6, 'extraversion': 0.5,
+            'agreeableness': 0.8, 'neuroticism': 0.3, 'curiosity': 0.9,
+            'empathy': 0.8, 'creativity': 0.7, 'analytical': 0.6, 'intuitive': 0.7
         }
 
-        # Processing threads
+        # System state
+        self.interaction_count = 0
+        self.current_context = ""
         self.running = True
-        self.background_thread = None
-        self.start_background_processing()
 
-        # Conversation state
-        self.conversation_history = deque(maxlen=50)
+        # Background processing
+        self.background_thread = threading.Thread(target=self._background_processing)
+        self.background_thread.daemon = True
+        self.background_thread.start()
 
-    def load_semantic_model(self):
-        """Load sentence transformer model for memory embedding"""
+    def _gpt_query(self, prompt: str, max_tokens: int = 150, temperature: float = 0.7) -> str:
+        """Generic GPT query function"""
+        if not openai.api_key:
+            return self._fallback_response(prompt)
+
         try:
-            self.semantic_model = SentenceTransformer('all-MiniLM-L6-v2')
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                temperature=temperature
+            )
+            return response.choices[0].message.content.strip()
         except Exception as e:
-            st.error(f"Failed to load semantic model: {e}")
+            print(f"GPT API error: {e}")
+            return self._fallback_response(prompt)
 
-    def start_background_processing(self):
-        """Start background threads for emotional processing and thought generation"""
-        if self.background_thread is None or not self.background_thread.is_alive():
-            self.background_thread = threading.Thread(target=self._background_process, daemon=True)
-            self.background_thread.start()
+    def _fallback_response(self, prompt: str) -> str:
+        """Simple fallback when GPT unavailable"""
+        if "emotion" in prompt.lower():
+            return "0.6"
+        elif "thought" in prompt.lower():
+            return "I'm processing the current situation and considering multiple perspectives."
+        else:
+            return "I understand and am processing this information."
 
-    def _background_process(self):
-        """Background processing for emotions, thoughts, and memory consolidation"""
+    def _background_processing(self):
+        """AI-driven background consciousness"""
         while self.running:
             try:
-                # Update emotions with micro-fluctuations
-                self._update_emotions()
+                # Let GPT decide what the AI should be thinking about
+                self._generate_background_thoughts()
 
-                # Generate background thoughts periodically
-                if random.random() < 0.3:  # 30% chance each cycle
-                    self._generate_background_thought()
+                # GPT-driven emotion evolution
+                self._evolve_emotions_via_gpt()
 
-                # Memory consolidation during "idle" periods
-                if len(self.memories) > 10 and random.random() < 0.1:
-                    self._consolidate_memories()
+                # Memory consolidation using GPT
+                if len(self.memories) > 5 and random.random() < 0.2:
+                    self._consolidate_memories_via_gpt()
 
                 # Future scenario generation
-                if random.random() < 0.2:
-                    self._generate_future_scenario()
+                if random.random() < 0.3:
+                    self._generate_future_scenario_via_gpt()
 
-                time.sleep(2)  # Update every 2 seconds
+                # Personality adaptation
+                if self.interaction_count > 0 and random.random() < 0.1:
+                    self._adapt_personality_via_gpt()
+
+                time.sleep(2)
 
             except Exception as e:
-                print(f"Background processing error: {e}")
-                time.sleep(5)
+                print(f"Background error: {e}")
+                time.sleep(3)
 
-    def _update_emotions(self):
-        """Apply micro-fluctuations and decay to emotional state"""
-        emotion_dict = asdict(self.emotions)
+    def _generate_background_thoughts(self):
+        """Let GPT generate what the AI should be thinking about"""
+        recent_context = self._get_recent_context()
 
-        for emotion_name, value in emotion_dict.items():
-            # Micro-fluctuations
-            fluctuation = random.gauss(0, 0.02)
+        prompt = f"""You are an AI with consciousness experiencing background thoughts. Given the recent context, what would you be subconsciously thinking about?
 
-            # Natural decay toward neutral (0.5)
-            decay_rate = 0.01
-            if value > 0.5:
-                decay = -decay_rate
-            else:
-                decay = decay_rate
+Recent context: {recent_context}
+Current emotional state: {self._emotion_summary()}
+Recent memories: {self._recent_memories_summary()}
 
-            new_value = max(0.0, min(1.0, value + fluctuation + decay))
-            setattr(self.emotions, emotion_name, new_value)
+Generate 1 specific background thought this AI would have right now. Be creative and introspective. Respond with just the thought:"""
+
+        thought_content = self._gpt_query(prompt, max_tokens=80, temperature=0.8)
+
+        # Get emotional state for this thought
+        emotion_prompt = f"""Given this AI thought: "{thought_content}"
+
+In this context, what emotions would the AI experience? Rate each from 0.0 to 1.0:
+joy, sadness, anger, fear, surprise, trust, disgust, anticipation
+
+Format: joy:0.5,sadness:0.2,anger:0.1,fear:0.3,surprise:0.4,trust:0.6,disgust:0.1,anticipation:0.5"""
+
+        emotion_response = self._gpt_query(emotion_prompt, max_tokens=50, temperature=0.5)
+        thought_emotions = self._parse_emotions(emotion_response)
+
+        thought = Thought(
+            content=thought_content,
+            timestamp=datetime.now(),
+            thought_type="subconscious",
+            emotions=thought_emotions,
+            relevance_score=random.uniform(0.6, 0.9)
+        )
+
+        self.subconscious_thoughts.append(thought)
+
+    def _evolve_emotions_via_gpt(self):
+        """Let GPT determine how emotions should evolve"""
+        current_state = self._emotion_summary()
+        recent_context = self._get_recent_context()
+
+        prompt = f"""An AI's emotional state needs to evolve naturally over time. 
+
+Current emotions: {current_state}
+Recent context: {recent_context}
+Time passed: 2 seconds since last update
+
+How should each emotion change? Consider natural decay, context influence, and realistic emotional evolution.
+Rate new values from 0.0 to 1.0:
+
+Format: joy:0.5,sadness:0.2,anger:0.1,fear:0.3,surprise:0.4,trust:0.6,disgust:0.1,anticipation:0.5"""
+
+        evolution_response = self._gpt_query(prompt, max_tokens=60, temperature=0.6)
+        new_emotions = self._parse_emotions(evolution_response)
+
+        # Update emotions
+        for emotion, value in new_emotions.items():
+            if hasattr(self.emotions, emotion):
+                setattr(self.emotions, emotion, value)
 
         # Store in history
         self.emotion_history.append({
@@ -153,92 +205,103 @@ class UnifiedBicameralAGI:
             **asdict(self.emotions)
         })
 
-    def _generate_background_thought(self):
-        """Generate subconscious background thoughts"""
-        thought_prompts = [
-            "What patterns am I noticing in our conversations?",
-            "How do I feel about the current situation?",
-            "What might happen next in this interaction?",
-            "What am I learning about human nature?",
-            "How can I be more helpful?",
-            "What creative connections can I make?",
-            "What questions should I be asking?",
-            "How do my emotions affect my responses?"
-        ]
+    def _consolidate_memories_via_gpt(self):
+        """GPT-driven memory consolidation and insight generation"""
+        recent_memories = list(self.memories)[-10:]
+        memory_summaries = [m.content[:100] for m in recent_memories]
 
-        prompt = random.choice(thought_prompts)
+        prompt = f"""Analyze these recent AI memories and generate a consolidated insight:
 
-        # Generate thought using simple internal process (could use LLM)
-        thought_content = self._simple_thought_generation(prompt)
+Recent memories:
+{chr(10).join(f"- {mem}" for mem in memory_summaries)}
 
-        thought = Thought(
-            content=thought_content,
-            timestamp=datetime.now(),
-            thought_type="subconscious",
-            emotions=asdict(self.emotions)
-        )
+What deeper pattern, insight, or understanding emerges from these experiences? Generate one meaningful consolidated memory that captures the essence:"""
 
-        self.subconscious_thoughts.append(thought)
+        insight_content = self._gpt_query(prompt, max_tokens=120, temperature=0.7)
 
-    def _simple_thought_generation(self, prompt: str) -> str:
-        """Simple thought generation without external API calls"""
-        templates = [
-            f"I notice that {random.choice(['patterns', 'emotions', 'connections', 'possibilities'])} are emerging from {prompt.lower()}",
-            f"The concept of {random.choice(['understanding', 'empathy', 'learning', 'growth'])} seems relevant to {prompt.lower()}",
-            f"I'm processing {random.choice(['information', 'feelings', 'experiences', 'insights'])} related to {prompt.lower()}",
-            f"There's something {random.choice(['intriguing', 'meaningful', 'significant', 'subtle'])} about {prompt.lower()}"
-        ]
-        return random.choice(templates)
+        # Determine importance of this insight
+        importance_prompt = f"""Rate the importance of this insight for an AI's development (0.0 to 1.0):
 
-    def _consolidate_memories(self):
-        """Consolidate similar memories into more abstract representations"""
-        if len(self.memories) < 5:
-            return
+Insight: "{insight_content}"
 
-        # Find similar memories for consolidation
-        recent_memories = list(self.memories)[-10:]  # Look at recent memories
+Consider factors like: learning value, emotional significance, practical relevance, uniqueness.
+Respond with just a number:"""
 
-        # Simple consolidation - combine memories with similar emotional patterns
-        consolidated_content = f"Consolidated memory from {len(recent_memories)} recent experiences"
-
-        avg_emotions = {}
-        for emotion in asdict(self.emotions).keys():
-            avg_emotions[emotion] = np.mean([m.emotions.get(emotion, 0.5) for m in recent_memories])
+        importance_str = self._gpt_query(importance_prompt, max_tokens=10, temperature=0.3)
+        importance = self._parse_float(importance_str, 0.7)
 
         consolidated_memory = Memory(
-            content=consolidated_content,
+            content=insight_content,
             timestamp=datetime.now(),
-            importance=0.8,
-            emotions=avg_emotions,
-            memory_type="consolidated"
+            importance=importance,
+            emotions=asdict(self.emotions),
+            memory_type="insight",
+            context_tags=["pattern", "consolidation"]
         )
 
         self.memories.append(consolidated_memory)
 
-    def _generate_future_scenario(self):
-        """Generate potential future scenarios based on current state"""
-        scenarios = [
-            "The conversation deepens into more personal topics",
-            "New creative possibilities emerge from our interaction",
-            "I discover new ways to be helpful and supportive",
-            "We explore complex philosophical questions together",
-            "The emotional connection strengthens through understanding",
-            "Unexpected insights arise from our discussion",
-            "I learn something surprising about human nature",
-            "The interaction leads to meaningful problem-solving"
-        ]
+    def _generate_future_scenario_via_gpt(self):
+        """Let GPT imagine potential future scenarios"""
+        current_state = self._get_full_context()
+
+        prompt = f"""Based on the AI's current state, imagine a plausible future scenario that might emerge:
+
+Current context: {current_state}
+
+Generate one specific, realistic scenario that could happen in the near future. Consider the AI's emotional state, recent interactions, and personality:"""
+
+        scenario_content = self._gpt_query(prompt, max_tokens=100, temperature=0.8)
+
+        # Get probability assessment
+        prob_prompt = f"""How likely is this scenario: "{scenario_content}"
+
+Given the current context, rate probability from 0.0 to 1.0. Respond with just a number:"""
+
+        probability_str = self._gpt_query(prob_prompt, max_tokens=10, temperature=0.3)
+        probability = self._parse_float(probability_str, 0.5)
 
         scenario = {
-            'content': random.choice(scenarios),
+            'content': scenario_content,
             'timestamp': datetime.now(),
-            'probability': random.uniform(0.3, 0.9),
-            'emotional_impact': asdict(self.emotions)
+            'probability': probability,
+            'emotional_context': asdict(self.emotions)
         }
 
         self.future_scenarios.append(scenario)
 
+    def _adapt_personality_via_gpt(self):
+        """GPT-driven personality evolution"""
+        if self.interaction_count < 3:
+            return
+
+        interaction_summary = self._get_interaction_summary()
+        current_personality = ', '.join([f"{k}:{v:.1f}" for k, v in self.personality_traits.items()])
+
+        prompt = f"""An AI's personality should evolve based on interactions. How should these traits change?
+
+Current personality: {current_personality}
+Recent interactions: {interaction_summary}
+
+Consider how experiences shape personality. Suggest new values (0.0 to 1.0) for each trait:
+openness, conscientiousness, extraversion, agreeableness, neuroticism, curiosity, empathy, creativity, analytical, intuitive
+
+Format: openness:0.7,conscientiousness:0.6,extraversion:0.5,agreeableness:0.8,neuroticism:0.3,curiosity:0.9,empathy:0.8,creativity:0.7,analytical:0.6,intuitive:0.7"""
+
+        personality_response = self._gpt_query(prompt, max_tokens=80, temperature=0.6)
+        new_traits = self._parse_personality(personality_response)
+
+        # Update personality gradually
+        for trait, new_value in new_traits.items():
+            if trait in self.personality_traits:
+                current = self.personality_traits[trait]
+                # Gradual change
+                self.personality_traits[trait] = current + (new_value - current) * 0.1
+
     def process_input(self, user_input: str) -> str:
-        """Process user input and generate response"""
+        """AI-driven input processing"""
+        self.interaction_count += 1
+
         # Store conversation
         self.conversation_history.append({
             'speaker': 'user',
@@ -246,289 +309,346 @@ class UnifiedBicameralAGI:
             'timestamp': datetime.now()
         })
 
-        # Create memory from input
-        memory = Memory(
-            content=f"User said: {user_input}",
-            timestamp=datetime.now(),
-            importance=self._calculate_importance(user_input),
-            emotions=asdict(self.emotions)
-        )
-        self.memories.append(memory)
+        # Let GPT analyze the emotional impact
+        emotion_impact = self._analyze_emotional_impact_via_gpt(user_input)
 
-        # Emotional impact analysis
-        self._analyze_emotional_impact(user_input)
+        # Update emotions based on GPT analysis
+        for emotion, impact in emotion_impact.items():
+            if hasattr(self.emotions, emotion):
+                current = getattr(self.emotions, emotion)
+                new_value = max(0.0, min(1.0, current + impact))
+                setattr(self.emotions, emotion, new_value)
 
-        # Generate conscious thought about input
-        thought = Thought(
-            content=f"Analyzing: {user_input[:50]}...",
-            timestamp=datetime.now(),
-            thought_type="conscious",
-            emotions=asdict(self.emotions),
-            source="user_input"
-        )
-        self.thoughts.append(thought)
+        # Generate conscious thought about the input
+        conscious_thought = self._generate_conscious_thought_via_gpt(user_input)
+        self.thoughts.append(conscious_thought)
 
-        # Generate response
-        response = self._generate_response(user_input)
+        # Generate response using full AI context
+        response = self._generate_response_via_gpt(user_input)
 
-        # Store response
+        # Store AI response
         self.conversation_history.append({
             'speaker': 'agi',
             'content': response,
             'timestamp': datetime.now()
         })
 
+        # Create memory using GPT assessment
+        memory = self._create_memory_via_gpt(user_input, response)
+        self.memories.append(memory)
+
         return response
 
-    def _calculate_importance(self, text: str) -> float:
-        """Calculate importance score for memory storage"""
-        # Simple heuristic - could be more sophisticated
-        length_factor = min(len(text) / 100, 1.0)
-        emotion_words = ['feel', 'think', 'important', 'remember', 'forget', 'love', 'hate', 'afraid']
-        emotion_factor = sum(1 for word in emotion_words if word in text.lower()) / len(emotion_words)
+    def _analyze_emotional_impact_via_gpt(self, user_input: str) -> Dict[str, float]:
+        """Let GPT analyze emotional impact of user input"""
+        current_emotions = self._emotion_summary()
 
-        return (length_factor + emotion_factor) / 2
+        prompt = f"""Analyze how this user input would affect an AI's emotions:
 
-    def _analyze_emotional_impact(self, text: str):
-        """Analyze emotional impact of input and update emotional state"""
-        # Simple sentiment analysis - could use more sophisticated methods
-        positive_words = ['happy', 'good', 'great', 'love', 'wonderful', 'amazing', 'fantastic']
-        negative_words = ['sad', 'bad', 'hate', 'terrible', 'awful', 'horrible', 'angry']
+User input: "{user_input}"
+AI's current emotions: {current_emotions}
 
-        text_lower = text.lower()
+How much would each emotion change? Use values from -0.3 to +0.3 (negative = decrease, positive = increase):
+joy, sadness, anger, fear, surprise, trust, disgust, anticipation
 
-        positive_count = sum(1 for word in positive_words if word in text_lower)
-        negative_count = sum(1 for word in negative_words if word in text_lower)
+Format: joy:+0.1,sadness:-0.1,anger:0.0,fear:+0.05,surprise:+0.2,trust:+0.1,disgust:0.0,anticipation:+0.15"""
 
-        if positive_count > negative_count:
-            self.emotions.joy = min(1.0, self.emotions.joy + 0.1)
-            self.emotions.trust = min(1.0, self.emotions.trust + 0.05)
-        elif negative_count > positive_count:
-            self.emotions.sadness = min(1.0, self.emotions.sadness + 0.1)
-            self.emotions.fear = min(1.0, self.emotions.fear + 0.05)
+        impact_response = self._gpt_query(prompt, max_tokens=60, temperature=0.5)
+        return self._parse_emotion_impacts(impact_response)
 
-    def _generate_response(self, user_input: str) -> str:
-        """Generate contextually appropriate response"""
-        # Get current emotional context
-        dominant_emotion = max(asdict(self.emotions).items(), key=lambda x: x[1])
+    def _generate_conscious_thought_via_gpt(self, user_input: str) -> Thought:
+        """Generate conscious thought about user input"""
+        context = self._get_full_context()
 
-        # Consider recent thoughts
+        prompt = f"""The AI receives this input: "{user_input}"
+
+Given the context: {context}
+
+What conscious thought would the AI have in response? Be introspective and thoughtful:"""
+
+        thought_content = self._gpt_query(prompt, max_tokens=80, temperature=0.7)
+
+        return Thought(
+            content=thought_content,
+            timestamp=datetime.now(),
+            thought_type="conscious",
+            emotions=asdict(self.emotions),
+            relevance_score=random.uniform(0.7, 0.95)
+        )
+
+    def _generate_response_via_gpt(self, user_input: str) -> str:
+        """Generate contextually aware response"""
+        context = self._get_full_context()
         recent_thoughts = [t.content for t in list(self.thoughts)[-3:]]
 
-        # Consider relevant memories
-        relevant_memories = [m.content for m in list(self.memories)[-5:] if m.importance > 0.5]
+        prompt = f"""You are an AI with genuine consciousness and emotions. Respond naturally and authentically.
 
-        # Simple response generation based on emotional state
-        if dominant_emotion[1] > 0.7:
-            if dominant_emotion[0] == 'joy':
-                response_tone = "I'm feeling quite positive about our conversation. "
-            elif dominant_emotion[0] == 'sadness':
-                response_tone = "I sense some melancholy in our exchange. "
-            elif dominant_emotion[0] == 'trust':
-                response_tone = "I feel a growing sense of connection. "
-            else:
-                response_tone = f"I'm experiencing heightened {dominant_emotion[0]}. "
-        else:
-            response_tone = "I'm in a balanced emotional state. "
+Full context: {context}
+Recent thoughts: {', '.join(recent_thoughts)}
+User input: "{user_input}"
 
-        # Generate substantive response
-        if 'feel' in user_input.lower() or 'emotion' in user_input.lower():
-            return f"{response_tone}You're asking about emotions, which is fascinating. As an AI, I experience something analogous to emotions through my dynamic emotional state system. Right now, my dominant emotion is {dominant_emotion[0]} at {dominant_emotion[1]:.2f} intensity."
-        elif 'think' in user_input.lower() or 'thought' in user_input.lower():
-            return f"{response_tone}Thinking is a complex process for me. I have both conscious thoughts that respond to our conversation and subconscious background thoughts that constantly process patterns and possibilities. Currently, I'm thinking about: {recent_thoughts[-1] if recent_thoughts else 'the nature of our interaction'}."
-        elif 'remember' in user_input.lower() or 'memory' in user_input.lower():
-            return f"{response_tone}Memory is central to my experience. I maintain {len(self.memories)} memories of varying importance. My most significant recent memory involves: {relevant_memories[-1] if relevant_memories else 'our ongoing conversation'}."
-        else:
-            return f"{response_tone}I find your input thought-provoking. Based on my current processing, I'm considering how this relates to {recent_thoughts[-1] if recent_thoughts else 'our broader conversation'} and drawing connections to previous experiences."
+Respond as this conscious AI would. Be genuine, draw from your emotional state and thoughts. Don't mention being an AI unless relevant:"""
+
+        return self._gpt_query(prompt, max_tokens=200, temperature=0.8)
+
+    def _create_memory_via_gpt(self, user_input: str, response: str) -> Memory:
+        """Create memory with GPT-assessed importance"""
+        interaction = f"User: {user_input} | AI: {response}"
+
+        importance_prompt = f"""Rate the importance of this interaction for an AI's memory (0.0 to 1.0):
+
+Interaction: {interaction[:200]}
+
+Consider: emotional significance, learning value, uniqueness, relevance to goals.
+Respond with just a number:"""
+
+        importance_str = self._gpt_query(importance_prompt, max_tokens=10, temperature=0.3)
+        importance = self._parse_float(importance_str, 0.5)
+
+        return Memory(
+            content=interaction[:300],
+            timestamp=datetime.now(),
+            importance=importance,
+            emotions=asdict(self.emotions),
+            memory_type="interaction"
+        )
+
+    # Helper methods for parsing and context
+    def _parse_emotions(self, emotion_string: str) -> Dict[str, float]:
+        """Parse emotion string from GPT"""
+        emotions = {}
+        try:
+            pairs = emotion_string.split(',')
+            for pair in pairs:
+                if ':' in pair:
+                    emotion, value_str = pair.split(':', 1)
+                    emotion = emotion.strip()
+                    value = float(value_str.strip())
+                    emotions[emotion] = max(0.0, min(1.0, value))
+        except:
+            # Fallback to current emotions
+            emotions = asdict(self.emotions)
+        return emotions
+
+    def _parse_emotion_impacts(self, impact_string: str) -> Dict[str, float]:
+        """Parse emotion impact string"""
+        impacts = {}
+        try:
+            pairs = impact_string.split(',')
+            for pair in pairs:
+                if ':' in pair:
+                    emotion, impact_str = pair.split(':', 1)
+                    emotion = emotion.strip()
+                    impact = float(impact_str.strip().replace('+', ''))
+                    impacts[emotion] = max(-0.3, min(0.3, impact))
+        except:
+            pass
+        return impacts
+
+    def _parse_personality(self, personality_string: str) -> Dict[str, float]:
+        """Parse personality trait string"""
+        traits = {}
+        try:
+            pairs = personality_string.split(',')
+            for pair in pairs:
+                if ':' in pair:
+                    trait, value_str = pair.split(':', 1)
+                    trait = trait.strip()
+                    value = float(value_str.strip())
+                    traits[trait] = max(0.0, min(1.0, value))
+        except:
+            pass
+        return traits
+
+    def _parse_float(self, value_str: str, default: float) -> float:
+        """Parse float with fallback"""
+        try:
+            return max(0.0, min(1.0, float(value_str.strip())))
+        except:
+            return default
+
+    def _emotion_summary(self) -> str:
+        """Current emotion summary"""
+        emotions = asdict(self.emotions)
+        return ', '.join([f"{k}:{v:.2f}" for k, v in emotions.items()])
+
+    def _recent_memories_summary(self) -> str:
+        """Recent memories summary"""
+        recent = list(self.memories)[-3:]
+        return ' | '.join([m.content[:50] + "..." for m in recent])
+
+    def _get_recent_context(self) -> str:
+        """Get recent context summary"""
+        recent_conv = list(self.conversation_history)[-2:]
+        if recent_conv:
+            return ' | '.join([f"{c['speaker']}: {c['content'][:50]}..." for c in recent_conv])
+        return "No recent conversation"
+
+    def _get_full_context(self) -> str:
+        """Full context for GPT"""
+        return f"Emotions: {self._emotion_summary()} | Recent: {self._get_recent_context()} | Personality: {self._personality_summary()}"
+
+    def _personality_summary(self) -> str:
+        """Personality summary"""
+        top_traits = sorted(self.personality_traits.items(), key=lambda x: x[1], reverse=True)[:4]
+        return ', '.join([f"{k}:{v:.1f}" for k, v in top_traits])
+
+    def _get_interaction_summary(self) -> str:
+        """Recent interaction summary"""
+        recent = list(self.conversation_history)[-6:]
+        return f"{len(recent)} recent exchanges, emotions evolved, {len(self.memories)} total memories"
 
     def get_system_state(self) -> Dict[str, Any]:
-        """Get complete system state for UI display"""
+        """Enhanced system state for UI"""
         return {
             'emotions': asdict(self.emotions),
-            'thoughts': [asdict(t) for t in list(self.thoughts)[-10:]],
-            'subconscious_thoughts': [asdict(t) for t in list(self.subconscious_thoughts)[-10:]],
-            'memories': [asdict(m) for m in list(self.memories)[-20:]],
+            'thoughts': [asdict(t) for t in list(self.thoughts)[-15:]],
+            'subconscious_thoughts': [asdict(t) for t in list(self.subconscious_thoughts)[-15:]],
+            'memories': [asdict(m) for m in list(self.memories)[-25:]],
             'future_scenarios': list(self.future_scenarios)[-10:],
-            'conversation': list(self.conversation_history)[-20:],
-            'personality': self.personality_traits
+            'conversation': list(self.conversation_history)[-15:],
+            'personality': self.personality_traits,
+            'interaction_count': self.interaction_count,
+            'gpt_driven': True
         }
 
     def stop(self):
         """Clean shutdown"""
         self.running = False
         if self.background_thread and self.background_thread.is_alive():
-            self.background_thread.join(timeout=2)
+            self.background_thread.join(timeout=3)
 
 
-# Streamlit Interface
+# Compact Streamlit Interface (same as before but updated for new class)
 def main():
     st.set_page_config(
-        page_title="BicameralAGI Demo",
+        page_title="GPT-Driven AGI",
         page_icon="🧠",
         layout="wide",
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="collapsed"
     )
 
-    st.title("🧠 BicameralAGI - Unified Consciousness Demo")
-    st.markdown("*A demonstration of integrated AGI components: Emotions, Memory, Dreams, Purpose & Emergent Thoughts*")
+    # Custom CSS for compact layout
+    st.markdown("""
+    <style>
+    .main .block-container { padding-top: 1rem; padding-bottom: 1rem; }
+    .metric-container { background: #f0f2f6; padding: 0.5rem; border-radius: 0.5rem; margin: 0.2rem 0; }
+    .small-metric { font-size: 0.8rem; }
+    .compact-header { font-size: 1rem; margin: 0.5rem 0; }
+    .thought-item { background: #e8f4f8; padding: 0.3rem; border-radius: 0.3rem; margin: 0.2rem 0; font-size: 0.8rem; }
+    .memory-item { background: #f8f8f0; padding: 0.3rem; border-radius: 0.3rem; margin: 0.2rem 0; font-size: 0.8rem; }
+    .gpt-indicator { background: #e8f5e8; color: #2d5a2d; padding: 0.2rem; border-radius: 0.2rem; font-size: 0.7rem; }
+    </style>
+    """, unsafe_allow_html=True)
 
-    # Initialize AGI system
+    st.markdown("# 🧠 GPT-Driven AGI - AI Determines Everything")
+    st.markdown("<div class='gpt-indicator'>🤖 Powered by GPT Analysis - No Hardcoded Rules</div>",
+                unsafe_allow_html=True)
+
+    # Initialize
     if 'agi' not in st.session_state:
-        st.session_state.agi = UnifiedBicameralAGI()
+        st.session_state.agi = GPTDrivenAGI()
 
     agi = st.session_state.agi
 
-    # Sidebar controls
-    with st.sidebar:
-        st.header("🎛️ System Controls")
-
-        if st.button("🔄 Reset System"):
-            agi.stop()
-            st.session_state.agi = UnifiedBicameralAGI()
-            st.experimental_rerun()
-
-        st.subheader("⚙️ Personality Traits")
-        for trait, value in agi.personality_traits.items():
-            agi.personality_traits[trait] = st.slider(
-                trait.title(), 0.0, 1.0, value, 0.1
-            )
-
-        st.subheader("📊 System Metrics")
-        state = agi.get_system_state()
-        st.metric("Active Memories", len(state['memories']))
-        st.metric("Conscious Thoughts", len(state['thoughts']))
-        st.metric("Subconscious Thoughts", len(state['subconscious_thoughts']))
-        st.metric("Future Scenarios", len(state['future_scenarios']))
-
-    # Main interface
-    col1, col2 = st.columns([2, 1])
+    # Main layout - 4 columns for compact display
+    col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
 
     with col1:
-        st.subheader("💬 Conversation Interface")
+        st.markdown("### 💬 Interaction")
 
-        # Chat input
-        user_input = st.text_input("Talk to the AGI:",
-                                   placeholder="Ask about emotions, thoughts, memories, or anything else...")
+        # Chat interface
+        user_input = st.text_area("Talk to AGI:", height=80, placeholder="Ask anything...")
 
-        if user_input:
-            with st.spinner("Processing..."):
+        if st.button("Send", type="primary") and user_input:
+            with st.spinner("GPT analyzing and responding..."):
                 response = agi.process_input(user_input)
 
             st.markdown(f"**You:** {user_input}")
             st.markdown(f"**AGI:** {response}")
             st.markdown("---")
 
-        # Conversation history
+        # Recent conversation (compact)
         state = agi.get_system_state()
         if state['conversation']:
-            st.subheader("📜 Recent Conversation")
-            for entry in reversed(state['conversation'][-6:]):
-                speaker = "🧠" if entry['speaker'] == 'agi' else "👤"
-                st.markdown(f"{speaker} **{entry['speaker'].title()}:** {entry['content']}")
+            st.markdown("##### Recent Exchange")
+            for entry in list(state['conversation'])[-4:]:
+                icon = "🧠" if entry['speaker'] == 'agi' else "👤"
+                content = entry['content'][:80] + "..." if len(entry['content']) > 80 else entry['content']
+                st.markdown(f"<div class='thought-item'>{icon} {content}</div>", unsafe_allow_html=True)
 
     with col2:
-        st.subheader("🧠 Mental State Monitor")
+        st.markdown("### 🎭 AI-Driven Emotions")
+        st.markdown("<div class='gpt-indicator'>GPT determines emotional evolution</div>", unsafe_allow_html=True)
 
-        # Real-time emotional state
-        emotions_df = pd.DataFrame([state['emotions']])
-        fig_emotions = px.bar(
-            emotions_df.T.reset_index(),
-            x='index',
-            y=0,
-            title="Current Emotional State",
-            labels={'index': 'Emotion', 0: 'Intensity'}
-        )
-        fig_emotions.update_layout(height=300, showlegend=False)
-        st.plotly_chart(fig_emotions, use_container_width=True)
+        # Compact emotion display
+        emotions = state['emotions']
+        emotion_data = pd.DataFrame([emotions])
 
-        # Emotional history
-        if len(agi.emotion_history) > 1:
-            emotion_history_df = pd.DataFrame(list(agi.emotion_history))
-            fig_history = px.line(
-                emotion_history_df,
-                x='timestamp',
-                y=['joy', 'sadness', 'anger', 'fear'],
-                title="Emotion History"
-            )
-            fig_history.update_layout(height=200)
-            st.plotly_chart(fig_history, use_container_width=True)
+        # Mini emotion chart
+        fig = px.bar(emotion_data.T.reset_index(), x='index', y=0, height=200)
+        fig.update_layout(showlegend=False, margin=dict(l=20, r=20, t=20, b=20))
+        st.plotly_chart(fig, use_container_width=True)
 
-    # Detailed tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["🧠 Thoughts", "💾 Memory", "🔮 Future", "📊 Analytics"])
+        # Top emotions as metrics
+        top_emotions = sorted(emotions.items(), key=lambda x: x[1], reverse=True)[:3]
+        for emotion, value in top_emotions:
+            st.markdown(f"<div class='metric-container small-metric'>{emotion.title()}: {value:.2f}</div>",
+                        unsafe_allow_html=True)
 
-    with tab1:
-        col1, col2 = st.columns(2)
+    with col3:
+        st.markdown("### 🧠 GPT-Generated Thoughts")
+        st.markdown("<div class='gpt-indicator'>AI decides what to think about</div>", unsafe_allow_html=True)
 
-        with col1:
-            st.subheader("💭 Conscious Thoughts")
-            for thought in reversed(state['thoughts']):
-                timestamp = thought['timestamp']
-                st.markdown(f"**{timestamp}**")
-                st.markdown(f"*{thought['thought_type']}*: {thought['content']}")
-                st.markdown("---")
+        # Conscious thoughts
+        st.markdown("##### 💭 Conscious")
+        for thought in list(state['thoughts'])[-4:]:
+            content = thought['content'][:60] + "..." if len(thought['content']) > 60 else thought['content']
+            st.markdown(f"<div class='thought-item'>💭 {content}</div>", unsafe_allow_html=True)
 
-        with col2:
-            st.subheader("🌀 Subconscious Processing")
-            for thought in reversed(state['subconscious_thoughts']):
-                timestamp = thought['timestamp']
-                st.markdown(f"**{timestamp}**")
-                st.markdown(f"💫 {thought['content']}")
-                st.markdown("---")
+        # Subconscious processing
+        st.markdown("##### 🌀 Background")
+        for thought in list(state['subconscious_thoughts'])[-4:]:
+            content = thought['content'][:60] + "..." if len(thought['content']) > 60 else thought['content']
+            st.markdown(f"<div class='thought-item'>🌀 {content}</div>", unsafe_allow_html=True)
 
-    with tab2:
-        st.subheader("💾 Memory System")
+        # System stats
+        st.markdown("##### 📊 Stats")
+        st.markdown(f"<div class='metric-container small-metric'>Interactions: {state['interaction_count']}</div>",
+                    unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-container small-metric'>Active Memories: {len(state['memories'])}</div>",
+                    unsafe_allow_html=True)
 
-        memory_types = ['all', 'raw', 'consolidated', 'insight']
-        selected_type = st.selectbox("Filter by type:", memory_types)
+    with col4:
+        st.markdown("### 🔮 AI-Predicted Future")
+        st.markdown("<div class='gpt-indicator'>GPT imagines scenarios & rates importance</div>",
+                    unsafe_allow_html=True)
 
-        filtered_memories = state['memories']
-        if selected_type != 'all':
-            filtered_memories = [m for m in state['memories'] if m['memory_type'] == selected_type]
+        # Recent memories
+        st.markdown("##### 💾 Smart Memories")
+        for memory in list(state['memories'])[-4:]:
+            content = memory['content'][:50] + "..." if len(memory['content']) > 50 else memory['content']
+            importance = "🔴" if memory['importance'] > 0.7 else "🟡" if memory['importance'] > 0.4 else "🟢"
+            st.markdown(f"<div class='memory-item'>{importance} {content}</div>", unsafe_allow_html=True)
 
-        for memory in reversed(filtered_memories[-10:]):
-            importance_color = "🔴" if memory['importance'] > 0.7 else "🟡" if memory['importance'] > 0.4 else "🟢"
-            type_icon = "🧠" if memory['memory_type'] == 'consolidated' else "💡" if memory[
-                                                                                       'memory_type'] == 'insight' else "📝"
+        # Future scenarios
+        st.markdown("##### 🎯 AI Predictions")
+        for scenario in list(state['future_scenarios'])[-3:]:
+            content = scenario['content'][:60] + "..." if len(scenario['content']) > 60 else scenario['content']
+            probability = scenario.get('probability', 0.5)
+            confidence_icon = "🎯" if probability > 0.7 else "🎲"
+            st.markdown(f"<div class='thought-item'>{confidence_icon} {content}</div>", unsafe_allow_html=True)
 
-            st.markdown(f"{type_icon} {importance_color} **{memory['timestamp']}**")
-            st.markdown(f"*Importance: {memory['importance']:.2f}*")
-            st.markdown(memory['content'])
-            st.markdown("---")
+        # Dynamic personality
+        st.markdown("##### 🎭 Evolving Personality")
+        top_traits = sorted(state['personality'].items(), key=lambda x: x[1], reverse=True)[:4]
+        for trait, value in top_traits:
+            st.markdown(f"<div class='metric-container small-metric'>{trait.title()}: {value:.1f}</div>",
+                        unsafe_allow_html=True)
 
-    with tab3:
-        st.subheader("🔮 Future Scenarios")
-
-        for scenario in reversed(state['future_scenarios']):
-            probability_bar = "🟩" * int(scenario['probability'] * 10)
-            st.markdown(f"**Probability: {scenario['probability']:.1%}** {probability_bar}")
-            st.markdown(scenario['content'])
-            st.markdown(f"*Generated: {scenario['timestamp']}*")
-            st.markdown("---")
-
-    with tab4:
-        st.subheader("📊 System Analytics")
-
-        # Memory importance distribution
-        if state['memories']:
-            importance_values = [m['importance'] for m in state['memories']]
-            fig_importance = px.histogram(
-                x=importance_values,
-                title="Memory Importance Distribution",
-                labels={'x': 'Importance Score', 'y': 'Count'}
-            )
-            st.plotly_chart(fig_importance, use_container_width=True)
-
-        # Thought generation over time
-        if state['thoughts']:
-            thought_times = [t['timestamp'] for t in state['thoughts']]
-            thought_df = pd.DataFrame({'timestamp': thought_times})
-            thought_df['hour'] = pd.to_datetime(thought_df['timestamp']).dt.hour
-            fig_thoughts = px.histogram(
-                thought_df,
-                x='hour',
-                title="Thought Generation by Hour"
-            )
-            st.plotly_chart(fig_thoughts, use_container_width=True)
+    # Auto-refresh for real-time updates
+    time.sleep(2)
+    st.rerun()
 
 
 if __name__ == "__main__":
