@@ -1,8 +1,0 @@
-{
-  "actions": {
-    "respond": {
-      "description": "Generate and deliver a response (verbal, visual, or multimodal)",
-      "function": "execute_response"
-    }
-  }
-}
