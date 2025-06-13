@@ -14,7 +14,7 @@ Current Features:
 1. **Character Definition**: Automatically generates or updates a character's name and summary based on a given description.
 2. **Context Management**: Tracks and updates conversation context for more informed responses.
 3. **Prompt Compilation**: Constructs dynamic prompts based on the current system state (context, user input, etc.).
-4. **Action Execution**: Handles executing responses based on user input and the processed context.
+4. **Response Generation**: Handles generating responses based on user input and the processed context.
 
 Usage Example:
 --------------
@@ -29,7 +29,6 @@ Date: 10/2/2024
 """
 import time
 
-from bica.core.action_executor import BicaActionExecutor
 from bica.core.context import BicaContext
 from bica.external.gpt_handler import GPTHandler
 from bica.core.profile import BicaProfile
@@ -42,7 +41,6 @@ from bica.utils.utilities import *
 class BicaCharacter:
     def __init__(self, character_description: str, debug_mode: bool):
         self.debug_mode = debug_mode
-        self.action_executor = BicaActionExecutor()
         self._recent_conversation = []  # Initialize here
         self.gpt_handler = GPTHandler()
 
@@ -156,7 +154,8 @@ class BicaCharacter:
             if isinstance(compiled_data, str):
                 compiled_data = {"compiled_prompt": compiled_data}
 
-            response = self.action_executor.execute_action("respond", compiled_data=compiled_data)
+            # Generate response using gpt_handler directly instead of action_executor
+            response = self.gpt_handler.generate_response_with_context(compiled_data)
             compiled_data["character_response"] = response
 
             self.update_recent_conversation(user_input, response)
@@ -241,4 +240,3 @@ class BicaCharacter:
         if self.debug_mode:
             print(f"Compiled prompt:\n{prompt}")
         return prompt
-
