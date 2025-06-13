@@ -24,51 +24,13 @@ class BicameralUI:
     """
 
     def __init__(self):
-        self.setup_page_config()
-
-    def setup_page_config(self):
-        """Configure Streamlit page settings"""
-        # Custom CSS for better appearance
-        st.markdown("""
-        <style>
-        .main > div {
-            padding-top: 0;
-            padding-bottom: 0;
-        }
-        
-        .stApp {
-            margin: 0;
-            padding: 0;
-        }
-        
-        div[data-testid="stVerticalBlock"] > div:first-child {
-            gap: 0;
-        }
-        
-        .metric-container {
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin: 5px 0;
-        }
-        
-        .status-indicator {
-            padding: 8px;
-            border-radius: 6px;
-            margin: 4px 0;
-            font-weight: 600;
-        }
-        
-        .status-online { background: #dcfce7; color: #166534; }
-        .status-offline { background: #fee2e2; color: #dc2626; }
-        .status-stable { background: #dbeafe; color: #1d4ed8; }
-        .status-processing { background: #fef3c7; color: #92400e; }
-        </style>
-        """, unsafe_allow_html=True)
+        # The call to setup_page_config() has been removed from here.
+        # The main application script will handle page configuration.
+        pass
 
     def create_modern_interface(self) -> str:
         """Create the complete modern HTML interface"""
+        # This large HTML string remains unchanged.
         return """
 <!DOCTYPE html>
 <html lang="en">
