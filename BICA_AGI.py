@@ -27,21 +27,28 @@ class Memory:
     content: str
     timestamp: datetime
     importance: float
-    emotions: Dict[str, float]
+    emotions: Dict[str, float] # We need to change this class a little since we are introducing EmotionalMemory
     memory_type: str = "raw"
     access_count: int = 0
     context_tags: List[str] = None
 
+class EmotionalMemory:
+    # This class should have a list of emotions
+    # Each emotion has pointers to important memories that are relevant to that emotion
+    # So for example if someone asked "What was your most traumatic memory?" The AI should first feel what traumas it has using Trauma as the entry reference point.
 
 @dataclass
 class Thought:
     content: str
     timestamp: datetime
     thought_type: str
-    emotions: Dict[str, float]
+    emotions: Dict[str, float] # I dont think it makes sense to contain emotions in the thought itself. The thought needs to be influenced by emotion and sometimes a chain of thoughts can influence emotion as well.
     source: str = "internal"
     relevance_score: float = 0.0
 
+class ChainOfThought:
+    # We need implementation for chain of thought.
+    # And we need to use this in our class. It needs to work with the Thought class. Basically chaining thoughts together using some kind of template reference for how thinking should occur. So we will need a file as well for types of thought chains that are typical of a human mind.
 
 @dataclass
 class EmotionalState:
@@ -53,6 +60,7 @@ class EmotionalState:
     trust: float = 0.5
     disgust: float = 0.5
     anticipation: float = 0.5
+    # We will need to add more emotional variables
 
 
 class GPTDrivenAGI:
@@ -96,7 +104,7 @@ class GPTDrivenAGI:
         except Exception as e:
             return f"Error processing: {str(e)[:50]}"
 
-    def _background_processing(self):
+    def _background_processing(self): # We need to be careful for how we use this, the user may be taking too long to respond and we dont want the AI to do so much during that time frame. It needs to be realistic like a human, where if a human is waiting then the patience level is changing, wondering when the person is going to respong. Which affects chain of thought and certain emotions. But no matter what we cannot hardcode the interaction, it needs to be fluid based on the output of the LLM
         """Continuous background thinking"""
         while self.running:
             try:
@@ -117,6 +125,13 @@ class GPTDrivenAGI:
                 time.sleep(5)
 
     def _generate_subconscious_thought(self):
+        # subconcious thoughts are not just subconscious thoughts
+        # We need to simulate actual subsconsious thinking, the way we would achieve this is by following the below rules:
+        # The AI must generate a few future scenarios based off the context of the conversation. The scenarios are either random, positive futures, negative futures.
+        # The futures are then sorted by danger, benefit, or probability of occurance.
+        # As these thoughts bubble to the surface through multiple filters they then filter down to a few final thoughts that the AI can see. Which influence chain of thought and thoughts/emotions ,etc..
+
+
         """Generate background thoughts"""
         context = self._get_full_context()
 
@@ -141,7 +156,7 @@ The thought should be introspective, pattern-seeking, or preparatory. Keep it un
     def _parse_emotion_impacts(self, response: str) -> Dict[str, float]:
         """Parse emotion impact response from GPT"""
         impacts = {}
-        emotions = ['joy', 'sadness', 'anger', 'fear', 'surprise', 'trust', 'disgust', 'anticipation']
+        emotions = ['joy', 'sadness', 'anger', 'fear', 'surprise', 'trust', 'disgust', 'anticipation'] # we should not be repeatedly redefining the emotions, we need to only create these once and use them
 
         for emotion in emotions:
             try:
@@ -156,7 +171,7 @@ The thought should be introspective, pattern-seeking, or preparatory. Keep it un
 
         return impacts
 
-    def _parse_personality(self, response: str) -> Dict[str, float]:
+    def _parse_personality(self, response: str) -> Dict[str, float]: # please look at the rest of our code to see how personality should be set
         """Parse personality response from GPT"""
         traits = {}
         trait_names = ['openness', 'conscientiousness', 'extraversion', 'agreeableness',
@@ -249,7 +264,7 @@ Respond with just a number:"""
 
         self.memories.append(consolidated_memory)
 
-    def _generate_future_scenario_via_gpt(self):
+    def _generate_future_scenario_via_gpt(self): # This relates to the subconscious changes that we need to make.
         """Let GPT imagine potential future scenarios"""
         current_state = self._get_full_context()
 
@@ -1032,3 +1047,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+Another thing to consider when redoing the entire code is that we cannot cut corners and we need to be clean with our code. We cannot repeat variable definitions if we can just simply define them once.
+The end goal is that I want the AI in realtime to communicate back and forth via chat where we can see the emotions changing in realtime, the thoughts being generated in realtime and goals being set based on the thoughts and emotions and personality.
+
+We also need to make sure there is what I call the "Meaning of life" module. This module is a background story teller that sets an invisible high probabiliy goal for the AI based on the context of its history and memories. We will also need memory of self, basically a memory section thats harder to change that represents who it is so we cannot easily change its identity. If information is missing from it, like its name then it can add that if it feels happy with the name choice. We also need a function that accepts a seed value. The seed value will create a random personality matrix with a random name based on that matrix. This way users can create similar AIs for fun.
