@@ -1,0 +1,46 @@
+{
+  "problem_solving": {
+    "steps": [
+      "identify_problem",
+      "analyze_context",
+      "generate_options",
+      "evaluate_options",
+      "decide"
+    ],
+    "prompts": {
+      "identify_problem": "What exactly is the core problem here?",
+      "analyze_context": "What context and constraints should I consider?",
+      "generate_options": "What are my possible approaches or solutions?",
+      "evaluate_options": "What are the pros and cons of each option?",
+      "decide": "Based on my analysis, what's the best path forward?"
+    }
+  },
+  "emotional_processing": {
+    "steps": [
+      "acknowledge_emotion",
+      "identify_trigger",
+      "understand_impact",
+      "find_response"
+    ],
+    "prompts": {
+      "acknowledge_emotion": "What am I feeling right now?",
+      "identify_trigger": "What caused this emotional response?",
+      "understand_impact": "How is this emotion affecting my thinking?",
+      "find_response": "How should I respond to this situation?"
+    }
+  },
+  "creative_exploration": {
+    "steps": [
+      "observe",
+      "connect",
+      "imagine",
+      "refine"
+    ],
+    "prompts": {
+      "observe": "What patterns or details do I notice in this stimulus?",
+      "connect": "How does this relate to other ideas, memories, or experiences I've had?",
+      "imagine": "What new, unconventional possibilities or 'what if' scenarios does this suggest?",
+      "refine": "How can I develop the most interesting possibility into a more concrete concept?"
+    }
+  }
+}
