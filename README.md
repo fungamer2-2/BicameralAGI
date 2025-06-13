@@ -32,7 +32,7 @@ Now I'm consolidating all that research into this main project and switching to 
 
 - [Why This Matters](#why-this-matters)
 - [My Core Motivations](#my-four-motivations)
-- [Technical Breakthroughs](#technical-breakthroughs)
+- [Technical Architecture](#technical-architecture)
 - [Bicameral Mind Theory](#bicameral-mind-theory)
 - [Development Philosophy](#development-philosophy)
 - [Feature Goals](#feature-goals)
@@ -128,46 +128,29 @@ Human intelligence isn't just about processing information - it's about caring a
 
 ---
 
-## 🛠 Technical Breakthroughs
+## 🛠 Technical Architecture
 
-After extensive research across multiple specialized projects, I've identified the key technical components needed for human-like AGI:
+The core logic is now consolidated in `agi_core.py`, which implements the key systems required for human-like AGI:
 
 ### Artificial Purpose System
-**Multi-timeframe future simulation** that creates subconscious motivation:
-- Short-term projections (days/weeks) for immediate planning
-- Mid-term scenarios (months/years) for goal formation  
-- Long-term visions for overall life direction
-- Dynamic personality modeling based on Big Five traits + additional psychological dimensions
-- Temporal pressure modeling affecting decision-making speed and depth
+**Function**: Creates subconscious motivation and goal-oriented behavior through multi-timeframe future simulation.
+**Implementation**: `MeaningOfLifeModule` evolves the AGI's purpose, while the `SubconsciousProcessor` generates and evaluates future scenarios.
 
 ### Emergent Thought Framework  
-**Creative thinking beyond deterministic responses**:
-- Controlled stochastic processes inject "subconscious" noise into reasoning
-- Dynamic memory integration triggers contextually relevant past experiences
-- Hierarchical evaluation selects the most promising thoughts from multiple candidates
-- Peak/valley analysis identifies both obvious and subtle patterns in thinking
+**Function**: Enables creative thinking and structured reasoning beyond deterministic responses.
+**Implementation**: The `ChainOfThought` class guides the AGI through complex reasoning patterns for problem-solving and emotional processing.
 
 ### Artificial Dreams System
-**Memory consolidation and creative insight generation**:
-- Automated memory consolidation during idle periods
-- Hypothetical scenario exploration based on accumulated experiences  
-- Pattern recognition across disparate memories to form new insights
-- Optimization-based early termination for computational efficiency
+**Function**: Consolidates memories and generates creative insights during idle time.
+**Implementation**: The `_consolidate_memories_dream_cycle` method in `BicameralAGI` mimics dreaming to find patterns and form abstract memories.
 
 ### Real-Time Emotional Intelligence
-**Authentic emotional experience and expression**:
-- Multi-dimensional emotional state (joy, sadness, anger, fear, surprise, trust, disgust, anticipation)
-- Emotion-influenced response generation and decision making
-- Background emotional processing that colors all interactions
-- Emotional memory formation with importance weighting
+**Function**: Implements an authentic, multi-dimensional emotional experience that influences all behavior.
+**Implementation**: The `EmotionalState` class tracks 14 distinct emotions, which are dynamically updated by the `_analyze_emotional_impact` function.
 
 ### Adaptive Memory Architecture
-**Human-like memory systems with semantic understanding**:
-- Working memory for immediate context and active processing
-- Short-term memory with importance-based filtering  
-- Long-term memory with associative retrieval and contextual activation
-- Emotional memory triggers that influence current processing
-- Temporal decay and consolidation processes
+**Function**: A human-like memory system with semantic understanding, importance scaling, and emotional indexing.
+**Implementation**: The `Memory` dataclass and `EmotionalMemory` class work together to store, index, and recall experiences based on relevance and emotional significance.
 
 ### Hardware Considerations
 Designed to run on accessible hardware through:
@@ -184,11 +167,11 @@ Julian Jaynes' controversial but fascinating theory suggests ancient humans had 
 
 ### Why Bicameral Architecture for AGI?
 
-**Specialized Processing**: Different cognitive functions (emotion, memory, reasoning, creativity) can operate in parallel with their own specialized subsystems.
+**Specialized Processing**: Different cognitive functions (emotion, memory, reasoning, creativity) operate in parallel within their own specialized classes.
 
-**Internal Dialogue**: The interaction between conscious and subconscious processes mirrors human decision-making complexity.
+**Internal Dialogue**: The interaction between conscious thoughts and the `SubconsciousProcessor` mirrors human decision-making complexity.
 
-**Emergent Behavior**: Multiple interacting systems can produce responses that are more than the sum of their parts.
+**Emergent Behavior**: Multiple interacting systems produce responses that are more than the sum of their parts.
 
 **Natural Conflict Resolution**: Different subsystems can have competing goals, requiring negotiation and compromise like human psychology.
 
@@ -233,28 +216,33 @@ Since I'm working mostly solo, I'm embracing a more intuitive development approa
 
 ### Prerequisites
 - Python 3.8+
-- OpenAI API key (for LLM reasoning components)
-- 8GB+ RAM (16GB+ recommended)
-- GPU recommended for advanced features
+- An OpenAI API key
+- `streamlit` and other packages from `requirements.txt`
 
 ### Quick Start
-```bash
-# Clone the repository
-git clone https://github.com/alanh90/BicameralAGI.git
-cd BicameralAGI
+1.  **Clone the repository:**
+    ```bash
+    git clone [https://github.com/alanh90/BicameralAGI.git](https://github.com/alanh90/BicameralAGI.git)
+    cd BicameralAGI
+    ```
 
-# Install dependencies
-pip install -r requirements.txt
+2.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-# Set up environment
-cp .env.example .env
-# Add your OpenAI API key to .env
+3.  **Set up your environment:**
+    Create a file named `.env` in the root directory and add your OpenAI API key to it:
+    ```
+    OPENAI_API_KEY=your_key_here
+    ```
 
-# Start exploring!
-python main.py
-```
-
-*Note: Starting fresh, so current implementation will be minimal as we rebuild with new insights.*
+4.  **Run the Streamlit application:**
+    Use the `streamlit run` command in your terminal to start the user interface.
+    ```bash
+    streamlit run main_app.py
+    ```
+    Your web browser should automatically open with the AGI's interface, where you can interact with it and see its internal state—emotions, thoughts, and memories—in real-time!
 
 ---
 
@@ -276,7 +264,7 @@ A: Join our [Discord](https://discord.gg/ns6E3xM6XN) for real-time collaboration
 A: Emotional intelligence and genuine caring are actually safety features. AI that understands suffering is naturally motivated to avoid causing it. Mutualistic relationships are inherently safer than master-servant dynamics.
 
 **Q: When will this be ready?**
-A: We're rebuilding from scratch with much clearer technical pathways. Expect basic emotional and memory systems within months, with increasingly sophisticated capabilities rolling out continuously.
+A: The foundational cognitive architecture is now complete and consolidated in `agi_core.py`. The current focus is on enhancing and expanding its capabilities, deepening the emotional model, and improving the long-term memory and reasoning systems.
 
 ---
 
